@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhoomidristi - Geospatial Copilot</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    
+    <!-- Markdown Parser for AI Chat Formatting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        /* Additional Embedded Styles for VLM Single-Image Chatbot View */
+        .mode {
+            display: flex;
+            gap: 8px;
+            background: #0f172a;
+            padding: 5px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .mode div {
+            flex: 1;
+            text-align: center;
+            padding: 9px 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            transition: all 0.2s ease;
+        }
+
+        .mode div.active {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+        }
+
+        .vlm-mode-view {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .vlm-dropzone {
+            position: relative;
+            border: 2px dashed #334155;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.6);
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .vlm-dropzone:hover {
+            border-color: #38bdf8;
+        }
+
+        .vlm-dropzone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .vlm-preview-img {
+            max-width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .vlm-prompt-input {
+            width: 100%;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 12px;
+            background: #1e293b;
+            color: #f8fafc;
+            font-size: 13px;
+            outline: none;
+            resize: vertical;
+            min-height: 65px;
+            box-sizing: border-box;
+        }
+
+        .vlm-prompt-input:focus {
+            border-color: #38bdf8;
+        }
+
+        .quick-chips-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .quick-chip {
+            border: 1px solid #334155;
+            background: rgba(30, 41, 59, 0.7);
+            color: #cbd5e1;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .quick-chip:hover {
+            background: #334155;
+            color: #38bdf8;
+            border-color: #38bdf8;
+        }
+
+        .quick-chip i {
+            color: #38bdf8;
+            font-size: 12px;
+        }
+
+        .vlm-hint {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: -4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <p class="logo-text"><i class="fa-solid fa-satellite"></i> Bhoomidristi</p>
+            </div>
+            <div class="menu"><i class="fa-solid fa-bars"></i></div>
+        </div>
+
+        <div class="chats" id="chat-container">
+            <!-- Initial AI Greeting -->
+            <div class="ai-chat">
+                <div class="chat-content">
+                    <p class="chat-text">Hello! I am your Bhoomidristi Geospatial Copilot. You can ask me questions about satellite change telemetry, request executive PDF reports, or click <b>Detect Changes</b> or <b>Analyze Image</b> below to start an AI inspection.</p>
+                </div>
+            </div>
+
+            <!-- Unified Multi-Modal AI Inspection Widget (Hidden by default) -->
+            <div class="change-detection hidden" id="detection-widget">
+                <!-- Inspection Modality Switcher -->
+                <div class="mode">
+                    <div class="map-mode active" id="nav-map-btn"><i class="fa-solid fa-map-location-dot"></i> Map Mode</div>
+                    <div class="manual-mode" id="nav-manual-btn"><i class="fa-solid fa-images"></i> Dual Image</div>
+                    <div class="vlm-mode" id="nav-vlm-btn"><i class="fa-solid fa-brain"></i> Single VLM</div>
+                    <!-- Inside <div class="mode"> in index.html, add the Cross-Modal Pair Tab alongside existing buttons -->
+                    <div class="crossmodal-mode" id="nav-crossmodal-btn"><i class="fa-solid fa-layer-group"></i> Optical-SAR Pair</div>
+                </div>
+
+                <div class="main">
+                    <!-- 1. MAP MODE VIEW -->
+                    <div class="map-mode-view active" id="map-mode-container">
+                        <p class="widget-label">1. Select Area of Interest</p>
+                        <div class="map" id="map"></div>
+                         
+                        <div class="map-details">
+                            <span id="area-info" class="badge">Selected Area: 0.0 km²</span>
+                            <span id="time-estimate" class="badge text-blue"></span>
+                            <span id="warning-msg" class="badge text-red"></span>
+                        </div>
+
+                        <!-- SENSOR MODALITY (Optical / SAR / Multi-Modal Fusion) -->
+                        <div class="input-group">
+                            <label>Sensor Modality</label>
+                            <select id="modality-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #334155; background: #1e293b; color: white; margin-bottom: 10px; outline: none;">
+                                <option value="optical">Optical (Sentinel-2)</option>
+                                <option value="sar">SAR (Sentinel-1 RTC)</option>
+                                <option value="fusion">Multi-Modal Fusion (Both)</option>
+                            </select>
+                        </div>
+
+                        <p class="widget-label">2. Set Timeframes</p>
+                        <div class="input-group">
+                            <label>Time 1 (Baseline)</label>
+                            <input type="text" id="t1-date" value="2020-06-01/2020-08-31">
+                        </div>
+                        <div class="input-group">
+                            <label>Time 2 (Current)</label>
+                            <input type="text" id="t2-date" value="2024-06-01/2024-08-31">
+                        </div>
+
+                        <div id="map-mode-progress-container" class="progress-container hidden">
+                            <div class="progress-text">
+                                <span id="map-status-text">⚙️ Initializing...</span>
+                                <span id="map-progress-percent">0%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div id="map-progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. MANUAL DUAL-IMAGE PAIR MODE VIEW -->
+                    <div class="manual-mode-view hidden" id="manual-mode-container">
+                        <form id="uploadForm">
+                            <div class="upload-grid">
+                                <div class="select-img file-input-wrapper">
+                                    <label>T1: PRE-CHANGE</label>
+                                    <input type="file" id="pre_image" accept="image/*" required>
+                                    <img id="prePreview" class="hidden">
+                                    <div id="preText" class="upload-placeholder">Click to browse</div>
+                                </div>
+
+                                <div class="select-img file-input-wrapper">
+                                    <label>T2: POST-CHANGE</label>
+                                    <input type="file" id="post_image" accept="image/*" required>
+                                    <img id="postPreview" class="hidden">
+                                    <div id="postText" class="upload-placeholder">Click to browse</div>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <div id="manual-mode-progress-container" class="progress-container hidden">
+                            <div class="progress-text">
+                                <span id="manual-status-text">⚙️ Analyzing Imagery...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. SINGLE-IMAGE VLM (SATQUERY PALIGEMMA 2) VIEW -->
+                    <div class="vlm-mode-view hidden" id="vlm-mode-container">
+                        <div class="input-group">
+                            <label>Upload Satellite Image</label>
+                            <div class="vlm-dropzone" id="vlm-dropzone">
+                                <input type="file" id="vlm_image" accept="image/png,image/jpeg,image/jpg,image/webp,.tif,.tiff">
+                                <img id="vlmPreview" class="vlm-preview-img hidden" alt="VLM Image Preview">
+                                <div id="vlmPlaceholder">
+                                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; color: #38bdf8; margin-bottom: 6px;"></i>
+                                    <p style="font-size: 13px; margin: 0; color: #cbd5e1;">Click or drag satellite scene here</p>
+                                    <span style="font-size: 11px; color: #64748b;">Supports PNG, JPG, WEBP, TIFF</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Prompt / Instruction</label>
+                            <textarea id="vlm_prompt" class="vlm-prompt-input" placeholder="e.g. answer en What objects are visible in the image?"></textarea>
+                            <span class="vlm-hint">Use task prefixes (answer en, caption en, detect) for optimal PaliGemma 2 response.</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Quick Query Presets</label>
+                            <div class="quick-chips-grid">
+                                <button type="button" class="quick-chip" data-vlm-prompt="answer en What objects are visible in the image?">
+                                    <i class="fa-solid fa-list-check"></i> VQA — List Objects
+                                </button>
+                                <button type="button" class="quick-chip" data-vlm-prompt="caption en">
+                                    <i class="fa-solid fa-align-left"></i> Caption — Describe
+                                </button>
+                                <button type="button" class="quick-chip" data-vlm-prompt="answer en How many buildings are visible in the image?">
+                                    <i class="fa-solid fa-calculator"></i> Count Buildings
+                                </button>
+                                <button type="button" class="quick-chip" data-vlm-prompt="detect building">
+                                    <i class="fa-solid fa-draw-polygon"></i> Locate Buildings
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="vlm-mode-progress-container" class="progress-container hidden">
+                            <div class="progress-text">
+                                <span id="vlm-status-text">⚙️ Running PaliGemma 2 QLoRA Inference...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. CROSS-MODAL OPTICAL-SAR PAIR MODE VIEW -->
+                    <div class="crossmodal-mode-view hidden" id="crossmodal-mode-container">
+                        <div class="upload-grid">
+                            <div class="select-img file-input-wrapper">
+                                <label>OPTICAL / MULTISPECTRAL</label>
+                                <input type="file" id="cm_opt_file" accept="image/*,.tif,.tiff">
+                                <img id="cmOptPreview" class="hidden">
+                                <div id="cmOptText" class="upload-placeholder">Upload Optical Scene</div>
+                            </div>
+                            <div class="select-img file-input-wrapper">
+                                <label>CO-REGISTERED SAR (RISAT / Sentinel-1)</label>
+                                <input type="file" id="cm_sar_file" accept="image/*,.tif,.tiff">
+                                <img id="cmSarPreview" class="hidden">
+                                <div id="cmSarText" class="upload-placeholder">Upload SAR Scene</div>
+                            </div>
+                        </div>
+                        <div class="input-group" style="margin-top: 10px;">
+                            <label>Cross-Modal Reasoning Query</label>
+                            <input type="text" id="cm_query" class="vlm-prompt-input" value="Use the optical and SAR images together to identify built-up and water-covered regions." style="min-height: 40px;">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="detect-change" id="submit-btn">Run Analysis</button>
+            </div>
+        
+            <div class="bottom-gap" style="height: 280px; width:100%;"></div>
+        </div>
+
+        <div class="chat-controls">
+            <div class="features">
+                <div class="feature highlight-btn" id="btn-spawn-widget">
+                    <i class="fa-solid fa-satellite-dish"></i> Detect Changes
+                </div>
+                <!-- New Quick-Action to launch Single-Image VLM directly in the chat -->
+                <div class="feature highlight-btn" id="btn-spawn-vlm" style="background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8;">
+                    <i class="fa-solid fa-brain"></i> Analyze Single Image
+                </div>
+                <div class="feature" onclick="document.getElementById('message').value = 'Summarize the latest violations';">
+                    <i class="fa-solid fa-list-check"></i> Summarize Violations
+                </div>
+                <div class="feature" onclick="document.getElementById('message').value = 'Export the recent report as PDF';">
+                    <i class="fa-solid fa-file-pdf"></i> Export Report
+                </div>
+            </div>
+            <div class="input-box">
+                <div class="mic">
+                    <i class="fa-solid fa-microphone"></i>
+                </div>
+                <div class="input">
+                    <textarea name="message" id="message" placeholder="Ask Bhoomidristi Copilot about telemetry, single-image VLM, or change detections..." rows="1"></textarea>
+                </div>
+                <div class="send" id="chat-send-btn">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    
+    <!-- Application Logic -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# =========================
+# ML Models / Checkpoints
+# =========================
+*.pth
+*.pt
+*.ckpt
+
+# =========================
+# Archives / Downloads
+# =========================
+*.part
+
+# =========================
+# Vercel
+# =========================
+.vercel/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Logs / Temporary files
+# =========================
+*.log
+*.tmp
+*.temp
+*.bak
+checkignore.py
+
+data
+
+# Large model files
+*.pth
+*.pt
+*.ckpt
+
+# Archives
+*.zip
+*.part
+
+# Vercel
+.vercel/
+
+# Python cache
+__pycache__/
+*.py[cod]

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhoomidristi - Geospatial Copilot</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    
+    <!-- Markdown Parser for AI Chat Formatting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <p class="logo-text"><i class="fa-solid fa-satellite"></i> Bhoomidristi</p>
+            </div>
+            <div class="menu"><i class="fa-solid fa-bars"></i></div>
+        </div>
+
+        <div class="chats" id="chat-container">
+            <!-- Initial AI Greeting -->
+            <div class="ai-chat">
+                <div class="chat-content">
+                    <p class="chat-text">Hello! I am your Bhoomidristi Geospatial Copilot. You can ask me about geospatial data, summarize reports, or click <b>Detect Changes</b> below to spawn a new satellite scan widget.</p>
+                </div>
+            </div>
+
+            <!-- Change Detection Widget (Hidden by default) -->
+            <div class="change-detection hidden" id="detection-widget">
+                <div class="mode">
+                    <div class="map-mode active" id="nav-map-btn">Map Mode</div>
+                    <div class="manual-mode" id="nav-manual-btn">Manual Mode</div>
+                </div>
+
+                <div class="main">
+                    <!-- Map Mode View -->
+                    <div class="map-mode-view active" id="map-mode-container">
+                        <p class="widget-label">1. Select Area of Interest</p>
+                        <div class="map" id="map"></div>
+                         
+                        <div class="map-details">
+                            <span id="area-info" class="badge">Selected Area: 0.0 km²</span>
+                            <span id="time-estimate" class="badge text-blue"></span>
+                            <span id="warning-msg" class="badge text-red"></span>
+                        </div>
+
+                        <!-- MOVED SENSOR MODALITY HERE -->
+                        <div class="input-group">
+                            <label>Sensor Modality</label>
+                            <select id="modality-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #334155; background: #1e293b; color: white; margin-bottom: 10px; outline: none;">
+                                <option value="optical">Optical (Sentinel-2)</option>
+                                <option value="sar">SAR (Sentinel-1 RTC)</option>
+                                <option value="fusion">Multi-Modal Fusion (Both)</option>
+                            </select>
+                        </div>
+
+                        <p class="widget-label">2. Set Timeframes</p>
+                        <div class="input-group">
+                            <label>Time 1 (Baseline)</label>
+                            <input type="text" id="t1-date" value="2023-06-01/2023-08-31">
+                        </div>
+                        <div class="input-group">
+                            <label>Time 2 (Current)</label>
+                            <input type="text" id="t2-date" value="2024-06-01/2024-08-31">
+                        </div>
+
+                        <div id="map-mode-progress-container" class="progress-container hidden">
+                            <div class="progress-text">
+                                <span id="map-status-text">⚙️ Initializing...</span>
+                                <span id="map-progress-percent">0%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div id="map-progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manual Mode View -->
+                    <div class="manual-mode-view hidden" id="manual-mode-container">
+                        <form id="uploadForm">
+                            <div class="upload-grid">
+                                <div class="select-img file-input-wrapper">
+                                    <label>T1: PRE-CHANGE</label>
+                                    <input type="file" id="pre_image" accept="image/*" required>
+                                    <img id="prePreview" class="hidden">
+                                    <div id="preText" class="upload-placeholder">Click to browse</div>
+                                </div>
+
+                                <div class="select-img file-input-wrapper">
+                                    <label>T2: POST-CHANGE</label>
+                                    <input type="file" id="post_image" accept="image/*" required>
+                                    <img id="postPreview" class="hidden">
+                                    <div id="postText" class="upload-placeholder">Click to browse</div>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <div id="manual-mode-progress-container" class="progress-container hidden">
+                            <div class="progress-text">
+                                <span id="manual-status-text">⚙️ Analyzing Imagery...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="detect-change" id="submit-btn">Run Analysis</button>
+            </div>
+        
+            <div class="bottom-gap" style="height: 280px; width:100%;"></div>
+        </div>
+
+        <div class="chat-controls">
+            <div class="features">
+                <div class="feature highlight-btn" id="btn-spawn-widget">
+                    <i class="fa-solid fa-satellite-dish"></i> Detect Changes
+                </div>
+                <div class="feature" onclick="document.getElementById('message').value = 'Summarize the latest violations';">
+                    <i class="fa-solid fa-list-check"></i> Summarize Violations
+                </div>
+                <div class="feature" onclick="document.getElementById('message').value = 'Export the recent report as PDF';">
+                    <i class="fa-solid fa-file-pdf"></i> Export Report
+                </div>
+            </div>
+            <div class="input-box">
+                <div class="mic">
+                    <i class="fa-solid fa-microphone"></i>
+                </div>
+                <div class="input">
+                    <textarea name="message" id="message" placeholder="Ask Groq AI about the detected changes..." rows="1"></textarea>
+                </div>
+                <div class="send" id="chat-send-btn">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    
+    <!-- Application Logic -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

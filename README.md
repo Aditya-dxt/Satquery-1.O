@@ -1,4 +1,3 @@
-```markdown
 # 🛰️ SatQuery AI (Bhoomidristi) - Geospatial Copilot
 
 An interactive, agentic vision-language assistant for multimodal remote-sensing image analysis through natural-language queries. Built for the Indian Space Research Organisation (ISRO) / Space Applications Centre (SAC) evaluation benchmarks and AI challenges.

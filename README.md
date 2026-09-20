@@ -54,7 +54,7 @@ project/
 ### 2. Clone and Install Dependencies
 
 ```bash
-git clone [https://github.com/your-username/satquery-ai.git](https://github.com/your-username/satquery-ai.git)
+git clone [https://github.com/owner-username/satquery-ai.git](https://github.com/your-username/satquery-ai.git)
 cd satquery-ai
 pip install -r requirements.txt
 
